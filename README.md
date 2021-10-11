@@ -1,8 +1,8 @@
 # Botadictos21:
 
-## Bot creado por Galo para [El Club De Los 21's](https://gtadictos21.com/discord)
+## Bot creado por Galo y Gtadictos21 para [El Club De Los 21's](https://gtadictos21.com/discord)
 
-Este bot se beneficia de [Pycord](https://github.com/Pycord-Development/pycord), un fork de Discord.py que está en constante desarollo y crecimiento. 
+### Este bot se beneficia de [Pycord](https://github.com/Pycord-Development/pycord), un fork de Discord.py que está en constante desarollo y crecimiento. 
 
 Youtube cog sacado de este [repositorio de Github](https://github.com/Amethyst93/Discord-YouTube-Notifier) y modificado por mi mismo (Convertido a cog, arreglo de bugs y otros cambios varios)
 
