@@ -1,7 +1,7 @@
-pip install -U git+https://github.com/Pycord-Development/pycord
 psutil==5.8.0
 colorama==0.4.4
 requests==2.22.0
 uptime==3.0.1
 urllib3==1.25.8
 tldextract==3.1.2
+pymongo==3.12.0
