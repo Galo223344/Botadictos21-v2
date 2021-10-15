@@ -1,15 +1,19 @@
 import os
 import time
 import discord
-import psutil # pip install psutil
+import psutil 
 import math
 import random
 import asyncio
 import json
-import urllib.request # pip install urllib3
+import urllib.request
+import pymongo
+import time
 
-from tldextract import extract # pip install tldextract
-from colorama import Fore # pip install colorama
+from datetime import datetime
+from pymongo import MongoClient
+from tldextract import extract 
+from colorama import Fore 
 from colorama import Style
 from discord.ext import commands 
 from datetime import datetime
@@ -28,12 +32,21 @@ with open("config.json") as f:
     sugchannel = data["sugchannel"] # Canal en donde envia las alertas cuando el bot se enciende
     global gvchannel
     gvchannel = data["gvchannel"] # Canal en donde envia las alertas cuando el bot se enciende
+    MongoDB_URL = data["Mongodb"] # URL para conectarse a la base de datos de MongoDB
 
+
+# Configuramos e iniciamos MongoDB
+try:
+    client = MongoClient(MongoDB_URL)
+    print(f'{Fore.RED}[MONGODB INFO]{Fore.CYAN}¡La base de datos se ha conectado!{Style.RESET_ALL}')
+except:  
+    print(f'{Fore.RED}[MONGODB ERROR]{Fore.CYAN}¡No se ha podido conectar a la base de datos! Revisa los logs del sistema{Style.RESET_ALL}')
+db = client['bot']
+spamlist = db['spamlist']
 
 
 # Ponemos todos los intents de discord (Porque los necesitamos)
 intents = discord.Intents.all()
-
 # Configuramos la instancia del bot
 bot = discord.Bot(intents=intents)
 
@@ -117,8 +130,8 @@ async def on_message(message):
 ##########################################################
 
 # Comando de ping (Para saber si el bot está vivo)
-@bot.slash_command(name='ping', guild_ids=[894817804740620350], description="¡Revisa la latencia del bot!")
-async def _ping(ctx):
+@bot.slash_command(guild_ids=[894817804740620350], description="¡Revisa la latencia del bot!")
+async def ping(ctx):
     start_time = time.time()
     message = await ctx.send("API ping")
     end_time = time.time()
@@ -141,7 +154,7 @@ async def add(ctx, link = None):
         await ctx.respond(embed=embed, ephemeral=True)
         return
             
-    if link == None:
+    if link not in None:
         embed=discord.Embed(title="¡Argumento inválido!", description="", color=0x008080)
         embed.set_footer(text=f"Pedido por: {ctx.author.display_name}", icon_url=ctx.author.avatar.url)
         await ctx.respond(embed=embed, ephemeral=True)
@@ -150,32 +163,45 @@ async def add(ctx, link = None):
     tsd, td, tsu = extract(link) 
     url = td + '.' + tsu
 
-    with open('spamlist.txt') as f:   
-        lines = f.read().splitlines()
+    try:
+        now = datetime.now()
+        fecha = now.strftime("%d/%m/%Y %H:%M:%S")
 
-        if url in lines:
-            embed=discord.Embed(title="¡Este link ya se encuentra en la lista negra!", description="", color=0xff0000)
-            embed.set_footer(text=f"Pedido por: {ctx.author.display_name}", icon_url=ctx.author.avatar.url)
-            await ctx.respond(embed=embed, ephemeral=True)
-            return
-        else:
-            with open('spamlist.txt','a') as file:
-                file.write(f"{url}\n")
-                print(f'{Fore.RED}[BOT INFO]{Fore.WHITE}¡El link: \"{Fore.MAGENTA}{url}{Fore.WHITE}\" ha sido agregado a la lista de spam!{Style.RESET_ALL}')
+        spamurl = {
+        "_id": url,
+        "autor": ctx.author.id,
+        "fecha": fecha 
+        }
+
+        spamlist.insert_one(spamurl)
+        print(f'{Fore.RED}[BOT INFO]{Fore.WHITE}¡El link: \"{Fore.MAGENTA}{url}{Fore.WHITE}\" ha sido agregado a la lista de spam!{Style.RESET_ALL}')
         
-    embed=discord.Embed(title="¡Un nuevo link ha sido agregado a la lista de spam!", description=f"Link agregado: **{url}** ", color=0x008080)
-    embed.set_footer(text=f"Pedido por: {ctx.author.display_name}", icon_url=ctx.author.avatar.url)
-    await ctx.respond(embed=embed)
+        embed=discord.Embed(title="¡Un nuevo link ha sido agregado a la lista de spam!", description=f"Link agregado: **{url}** ", color=0x008080)
+        embed.set_footer(text=f"Pedido por: {ctx.author.display_name}", icon_url=ctx.author.avatar.url)
+        await ctx.respond(embed=embed)
 
-    bot.unload_extension("cogs.spam")
-    bot.load_extension("cogs.spam")
-    print(f'{Fore.RED}[BOT INFO]{Fore.WHITE}¡El cog \"spam\" se ha recargado!{Style.RESET_ALL}')
+        bot.unload_extension("cogs.spam")
+        bot.load_extension("cogs.spam")
+        print(f'{Fore.RED}[BOT INFO]{Fore.WHITE}¡El cog \"spam\" se ha recargado!{Style.RESET_ALL}')
 
-    channel = bot.get_channel(logchannel)
-    embed=discord.Embed(title=f"¡El administrador {ctx.author.display_name} agregó un nuevo link a la lista de spam:", description=f"Link agregado: \"{url}\"", timestamp= datetime.now(), color=0xff7d00)
-    embed.set_thumbnail(url=ctx.author.avatar.url)
-    embed.set_footer(text=f"ID del usuario: {ctx.author.id}")
-    await channel.send(embed=embed)
+        channel = bot.get_channel(logchannel)
+        embed=discord.Embed(title=f"¡El administrador {ctx.author.display_name} agregó un nuevo link a la lista de spam:", description=f"Link agregado: \"{url}\"", timestamp= datetime.now(), color=0xff7d00)
+        embed.set_thumbnail(url=ctx.author.avatar.url)
+        embed.set_footer(text=f"ID del usuario: {ctx.author.id}")
+        await channel.send(embed=embed)
+    
+    except:
+        encontrado = spamlist.find({},{'_id': url, 'autor': 1, 'fecha': 1, })
+        for data in encontrado:
+            x = json.dumps(data)
+            y = json.loads(x)
+            author = y["autor"]
+            date = y["fecha"]
+
+        embed=discord.Embed(title="¡Este link ya se encuentra en la lista negra!", description=f"El administrador <@{author}> agregó el link el dia: {date}", color=0xff0000)
+        embed.set_footer(text=f"Pedido por: {ctx.author.display_name}", icon_url=ctx.author.avatar.url)
+        await ctx.respond(embed=embed, ephemeral=True)
+        return
 
 
 ##########################################################
@@ -195,6 +221,8 @@ async def load(ctx, extension):
 
     bot.load_extension(f"cogs.{extension}")
 
+    print(f'{Fore.RED}[BOT INFO]{Fore.WHITE}¡El cog \"{extension}\" se ha cargado!{Style.RESET_ALL}')
+
     embed=discord.Embed(title=f"¡El cog {extension} ha sido cargado!", description="", color=0xff0000)
     embed.set_footer(text=f"Pedido por: {ctx.author.display_name}", icon_url=ctx.author.avatar.url)
     await ctx.respond(embed=embed)
@@ -213,8 +241,10 @@ async def unload(ctx, extension):
         embed.set_footer(text=f"Pedido por: {ctx.author.display_name}", icon_url=ctx.author.avatar.url)
         await ctx.respond(embed=embed, ephemeral=True)
         return
-
+    
     bot.unload_extension(f"cogs.{extension}")
+
+    print(f'{Fore.RED}[BOT INFO]{Fore.WHITE}¡El cog \"{extension}\" se ha descargado!{Style.RESET_ALL}')
 
     embed=discord.Embed(title=f"¡El cog {extension} ha sido descargado!", description="", color=0xff0000)
     embed.set_footer(text=f"Pedido por: {ctx.author.display_name}", icon_url=ctx.author.avatar.url)
@@ -246,6 +276,8 @@ async def reload(ctx, extension):
             if filename.endswith('.py'):
                 bot.load_extension(f"cogs.{filename[:-3]}")
 
+        print(f'{Fore.RED}[BOT INFO]{Fore.WHITE}¡Todos los cogs han sido recargados!{Style.RESET_ALL}')
+
         embed=discord.Embed(title=f"¡Todas los cogs han sido recargados!", description="", color=0xff0000)
         embed.set_footer(text=f"Pedido por: {ctx.author.display_name}", icon_url=ctx.author.avatar.url)
         await ctx.respond(embed=embed)
@@ -259,6 +291,8 @@ async def reload(ctx, extension):
 
     bot.unload_extension(f"cogs.{extension}")
     bot.load_extension(f"cogs.{extension}")
+
+    print(f'{Fore.RED}[BOT INFO]{Fore.WHITE}¡El cog \"{extension}\" se ha recargado!{Style.RESET_ALL}')
 
     embed=discord.Embed(title=f"¡El cog {extension} ha sido recargado!", description="", color=0xff0000)
     embed.set_footer(text=f"Pedido por: {ctx.author.display_name}", icon_url=ctx.author.avatar.url)
