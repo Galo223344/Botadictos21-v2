@@ -33,6 +33,7 @@ python3 Botadictos21.py
 - [ ] Añadir mas cogs (Moderación, YT, Levels, Reminder, Welcome, Reacción, Temp, Logs)
 - [ ] Añadir funciones extras
 - [ ] Añadir archivo de Systemd (Para iniciar el bot automaticamente)
+- [ ] Crear un dashboard web para revisar los niveles (Flask, HTML & CSS)
 - Y mas...
 
 ## Créditos:
